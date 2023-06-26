@@ -73,6 +73,11 @@
 (straight-use-package 'use-package)
 (setq use-package-always-ensure t)
 
+(use-package all-the-icons
+  :straight (all-the-icons :type git :host github :repo "domtronn/all-the-icons.el")
+  :if (display-graphic-p)
+)
+
 (use-package transient
   :straight t
   :ensure t
@@ -298,7 +303,7 @@
   (define-key global-map (kbd "<f2> i") 'counsel-info-lookup-symbol)
   (define-key global-map (kbd "<f2> u") 'counsel-unicode-char)
   (define-key global-map (kbd "<f2> j") 'counsel-set-variable)
-  (diminish 'counsel-mode " ⚓"))
+)
 
 (use-package swiper
   :straight t
@@ -369,6 +374,7 @@
   :ensure t)
 
 (use-package treemacs-tab-bar ;;treemacs-tab-bar if you use tab-bar-mode
+  :straight t
   :after (treemacs)
   :ensure t
   :config (treemacs-set-scope-type 'Tabs))
