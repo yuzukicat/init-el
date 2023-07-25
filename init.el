@@ -905,7 +905,7 @@ Up^^             Down^^           Miscellaneous           % 2(mc/num-cursors) cu
   (add-hook 'org-mode-hook #'org-ai-mode) ; enable org-ai in org-mode
   (org-ai-global-mode) ; installs global keybindings on C-c M-a
   :config
-  (setq org-ai-openai-api-token (get-auth-info "api.openai.com" "org-ai"))
+  (setq org-ai-openai-api-token "sk-YOUR_OPENAI_API_KEY")
   (setq org-ai-default-chat-model "gpt-4") ; if you are on the gpt-4 beta:
   (org-ai-install-yasnippets)) ; if you are using yasnippet and want `ai` snippets
 
@@ -934,3 +934,576 @@ Up^^             Down^^           Miscellaneous           % 2(mc/num-cursors) cu
           (lambda ()
             (while (re-search-forward "\\\\" nil t)
               (replace-match "")))))
+
+(use-package apel
+  :straight t)
+(use-package flim
+  :straight t)
+(use-package semi
+  :straight t)
+
+(use-package wanderlust
+  :straight t
+  :ensure t)
+
+;; autoload configuration
+(autoload 'wl "wl" "Wanderlust" t)
+(autoload 'wl-other-frame "wl" "Wanderlust on new frame." t)
+(autoload 'wl-draft "wl-draft" "Write draft with Wanderlust." t)
+
+;; For non ascii-characters in folder-names
+(setq elmo-imap4-use-modified-utf7 t)
+
+(setq elmo-imap4-default-server "imap.gmail.com"
+      elmo-imap4-default-user "dawei.jiang@nowhere.co.jp"
+      elmo-imap4-default-authenticate-type 'xoauth2
+      elmo-imap4-default-port '993
+      elmo-imap4-default-stream-type 'ssl)
+
+(setq wl-smtp-connection-type 'starttls
+      wl-smtp-posting-port 587
+      wl-smtp-authenticate-type "xoauth2"
+      wl-smtp-posting-user "dawei.jiang@nowhere.co.jp"
+      wl-smtp-posting-server "smtp.gmail.com"
+      wl-local-domain "gmail.com"
+      wl-message-id-domain "smtp.gmail.com")
+(setq elmo-localdir-folder-path "~/Maildir")
+(setq wl-summary-incorporate-marks '("N" "U" "!" "A" "F" "$"))
+(defun wl-summary-overview-entity-compare-by-rdate (x y)
+  (not (wl-summary-overview-entity-compare-by-date x y)))
+
+(defun wl-summary-sort-by-rdate ()
+  (interactive)
+  (wl-summary-rescan "rdate")
+  (goto-char (point-min)))
+
+(defadvice wl-summary-rescan (after wl-summary-rescan-move-cursor activate)
+  (if (string-match "^r" (ad-get-arg 0))
+      (goto-char (point-min))))
+
+;; sort the summary
+(defun my-wl-summary-sort-hook ()
+  (wl-summary-rescan "rdate"))
+
+(add-hook 'wl-summary-prepared-hook 'my-wl-summary-sort-hook)
+
+(add-hook
+ 'mime-view-mode-hook
+ '(lambda ()
+    "Disable 'v' for mime-play."
+    ;; Key bindings
+    (local-set-key [?v] () )
+    ))
+
+(remove-hook 'wl-message-redisplay-hook 'bbdb-wl-get-update-record)
+
+(setq
+ ;; All system folders (draft, trash, spam, etc) are placed in the
+ ;; [Gmail]-folder, except inbox. "%" means it's an IMAP-folder
+ wl-default-folder "%inbox"
+ wl-draft-folder   "%[Gmail]/Drafts"
+ wl-trash-folder   "%[Gmail]/Trash"
+ wl-spam-folder    "%[Gmail]/Spam"
+ wl-sent-folder    "%[Gmail]/Sent"
+
+ ;; The below is not necessary when you send mail through Gmail's SMTP server,
+ ;; see https://support.google.com/mail/answer/78892?hl=en&rd=1
+ ;; wl-fcc            "%[Gmail]/Sent"
+
+ wl-from "Yuzuki <dawei.jiang@nowhere.co.jp>"  ; Our From: header field
+ wl-fcc-force-as-read t           ; Mark sent mail (in the wl-fcc folder) as read
+ wl-default-spec "%")             ; For auto-completion
+
+(setq elmo-search-default-engine 'mu)
+
+;; ignore  all fields
+(setq wl-message-ignored-field-list '("^.*:"))
+
+;; ..but these five
+(setq wl-message-visible-field-list
+'("^To:"
+  "^Cc:"
+  "^From:"
+  "^Subject:"
+  "^Date:"))
+
+(if (boundp 'mail-user-agent)
+    (setq mail-user-agent 'wl-user-agent))
+(if (fboundp 'define-mail-user-agent)
+    (define-mail-user-agent
+      'wl-user-agent
+      'wl-user-agent-compose
+      'wl-draft-send
+      'wl-draft-kill
+      'mail-send-hook))
+
+;; Use ~/.mailrc
+(defun my-wl-address-init ()
+  (wl-local-address-init)
+  (setq wl-address-completion-list
+        (append wl-address-completion-list (build-mail-aliases))))
+(setq wl-address-init-function 'my-wl-address-init)
+
+;;Only save draft when I tell it to (C-x C-s or C-c C-s):
+(setq wl-auto-save-drafts-interval nil)
+
+(setq mime-edit-split-message nil)
+
+;;Cobbled together from posts by Erik Hetzner & Harald Judt to
+;; wl-en@lists.airs.net by Jonathan Groll (msg 4128)
+(defun mime-edit-insert-multiple-files ()
+  "Insert MIME parts from multiple files."
+  (interactive)
+  (let ((dir default-directory))
+    (let ((next-file (expand-file-name
+                      (read-file-name "Insert file as MIME message: "
+		      dir))))
+      (setq file-list (file-expand-wildcards next-file))
+      (while (car file-list)
+        (mime-edit-insert-file (car file-list))
+        (setq file-list (cdr file-list))))))
+(global-set-key "\C-c\C-x\C-a" 'mime-edit-insert-multiple-files)
+
+;; (setq wl-draft-send-mail-function 'wl-draft-send-mail-with-sendmail)
+(setq plstore-cache-passphrase-for-symmetric-encryption t)
+(setq mime-header-accept-quoted-encoded-words t)
+(setq wl-stay-folder-window t)
+
+(defun dmj/wl-send-html-message ()
+  "Send message as html message.
+  Convert body of message to html using
+  `org-export-region-as-html'."
+  (require 'org)
+  (save-excursion
+    (let (beg end html text)
+      (goto-char (point-min))
+      (re-search-forward "^--text follows this line--$")
+      ;; move to beginning of next line
+      (beginning-of-line 2)
+      (setq beg (point))
+      (if (not (re-search-forward "^--\\[\\[" nil t))
+          (setq end (point-max))
+        ;; line up
+        (end-of-line 0)
+        (setq end (point)))
+      ;; grab body
+      (setq text (buffer-substring-no-properties beg end))
+      ;; convert to html
+      (with-temp-buffer
+        (org-mode)
+        (insert text)
+        ;; handle signature
+        (when (re-search-backward "^-- \n" nil t)
+          ;; preserve link breaks in signature
+          (insert "\n#+BEGIN_VERSE\n")
+          (goto-char (point-max))
+          (insert "\n#+END_VERSE\n")
+          ;; grab html
+          (setq html (org-export-region-as-html
+                      (point-min) (point-max) t 'string))))
+      (delete-region beg end)
+      (insert
+       (concat
+	"--" "<<alternative>>-{\n"
+	"--" "[[text/plain]]\n" text
+        "--" "[[text/html]]\n"  html
+	"--" "}-<<alternative>>\n")))))
+
+(defun dmj/wl-send-html-message-toggle ()
+  "Toggle sending of html message."
+  (interactive)
+  (setq dmj/wl-send-html-message-toggled-p
+        (if dmj/wl-send-html-message-toggled-p
+            nil "HTML"))
+  (message "Sending html message toggled %s"
+           (if dmj/wl-send-html-message-toggled-p
+               "on" "off")))
+
+(defun dmj/wl-send-html-message-draft-init ()
+  "Create buffer local settings for maybe sending html message."
+  (unless (boundp 'dmj/wl-send-html-message-toggled-p)
+    (setq dmj/wl-send-html-message-toggled-p nil))
+  (make-variable-buffer-local 'dmj/wl-send-html-message-toggled-p)
+  (add-to-list 'global-mode-string
+               '(:eval (if (eq major-mode 'wl-draft-mode)
+                           dmj/wl-send-html-message-toggled-p))))
+
+(defun dmj/wl-send-html-message-maybe ()
+  "Maybe send this message as html message.
+
+If buffer local variable `dmj/wl-send-html-message-toggled-p' is
+non-nil, add `dmj/wl-send-html-message' to
+`mime-edit-translate-hook'."
+  (if dmj/wl-send-html-message-toggled-p
+      (add-hook 'mime-edit-translate-hook 'dmj/wl-send-html-message)
+    (remove-hook 'mime-edit-translate-hook 'dmj/wl-send-html-message)))
+
+(add-hook 'wl-draft-reedit-hook 'dmj/wl-send-html-message-draft-init)
+(add-hook 'wl-mail-setup-hook 'dmj/wl-send-html-message-draft-init)
+(add-hook 'wl-draft-send-hook 'dmj/wl-send-html-message-maybe)
+
+(setq dmj/wl-send-html-message-toggled-p t)
+
+;; Shut up, I just want to save the thing.
+(defun mime-preview-extract-current-entity (&optional ignore-examples)
+  "Extract current entity into file (maybe).
+It decodes current entity to call internal or external method as
+\"extract\" mode.  The method is selected from variable
+`mime-acting-condition'."
+  (interactive "P")
+  (cl-letf (((symbol-function #'mime-play-entity)
+             (lambda (entity &optional situation ignored-method)
+               (mime-save-content entity situation))))
+    (mime-preview-play-current-entity ignore-examples "extract")))
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(smtpmail-smtp-server "smtp.gmail.com")
+ '(smtpmail-smtp-service 25))
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(minimap-active-region-background ((((background dark)) (:background "#555555555555")) (t (:background "#C847D8FEFFFF"))) nil 'minimap))
+
+(use-package org-ql
+  :straight t
+  :ensure t
+  :after (org))
+
+(use-package orgtbl-aggregate
+  :straight t
+  :ensure t
+  :after (org))
+
+(use-package orgtbl-join
+  :straight t
+  :ensure t
+  :after (org)
+  :bind ("C-c j" . orgtbl-join)
+  :init
+  (easy-menu-add-item
+   org-tbl-menu '("Column")
+   ["Join with another table" orgtbl-join (org-at-table-p)]))
+
+(use-package orgtbl-fit
+  :straight t
+  :ensure t
+  :after (org))
+
+(use-package osm
+  :straight t
+  :ensure t
+  :bind ("C-c m" . osm-prefix-map) ;; Alternative: `osm-home'
+  :custom
+  (osm-server 'default) ;; Configure the tile server
+  (osm-copyright t)     ;; Display the copyright information
+  :init
+  ;; Load Org link support
+  (with-eval-after-load 'org
+    (require 'osm-ol)))
+
+(use-package ox-qmd
+  :straight t
+  :ensure t
+  :after (org))
+
+(use-package pandoc-mode
+  :straight t
+  :ensure t)
+
+(use-package ox-pandoc
+  :straight t
+  :ensure t)
+
+(use-package ox-spectacle
+  :straight t
+  :ensure t)
+(use-package nix-mode
+  :straight t
+  :ensure t
+  :mode "\\.nix\\'")
+
+(use-package pnpm-mode
+  :straight t
+  :ensure t)
+
+(use-package poetry
+  :straight t
+  :ensure t)
+
+(use-package prisma-mode
+  :straight t
+  :ensure t)
+;; (use-package protobuf-mode)
+;; (use-package protobuf-ts-mode)
+
+(use-package exec-path-from-shell
+  :straight t
+  :ensure t
+  :if (memq (window-system) '(mac ns))
+  :config (exec-path-from-shell-initialize))
+
+(use-package python-mode
+  :straight t
+  :ensure t)
+
+(use-package python-x
+  :straight t
+  :ensure t
+  :mode "\\.py\\'")
+
+(use-package lsp-jedi
+  :straight t
+  :ensure t
+  :after lsp)
+
+(use-package lsp-pyright
+  :straight t
+  :ensure t
+  :after lsp)
+
+(use-package python-pytest
+  :straight t
+  :ensure t)
+
+(use-package python-black
+  :straight t
+  :ensure t)
+
+(use-package python-isort
+  :straight t
+  :ensure t)
+
+;; (use-package pet
+;;   :ensure-system-package (dasel sqlite3)
+;;   :config
+;;   (add-hook 'python-mode-hook
+;;             (lambda ()
+;;               (setq-local python-shell-interpreter (pet-executable-find "python")
+;;                           python-shell-virtualenv-root (pet-virtualenv-root))
+;;               (pet-flycheck-setup)
+;;               (flycheck-mode 1)
+;;               (setq-local lsp-jedi-executable-command
+;;                           (pet-executable-find "jedi-language-server"))
+
+;;               (setq-local lsp-pyright-python-executable-cmd python-shell-interpreter
+;;                           lsp-pyright-venv-path python-shell-virtualenv-root)
+
+;;               (lsp)
+
+;;               (setq-local python-pytest-executable (pet-executable-find "pytest"))
+
+;;               (when-let ((black-executable (pet-executable-find "black")))
+;;                 (setq-local python-black-command black-executable)
+;;                 (python-black-on-save-mode 1))
+
+;;               (when-let ((isort-executable (pet-executable-find "isort")))
+;;                 (setq-local python-isort-command isort-executable)
+;;                 (python-isort-on-save-mode 1)))))
+
+(use-package python-docstring
+  :straight t
+  :ensure t)
+
+(use-package numpydoc
+  :straight t
+  :ensure t
+  :bind (:map python-mode-map
+              ("C-c C-n" . numpydoc-generate)))
+
+(use-package pyinspect
+  :straight t
+  :ensure t
+  :config
+  (define-key python-mode-map (kbd "C-c i") #'pyinspect-inspect-at-point))
+
+(use-package python-cell
+  :straight t
+  :ensure t
+  :config
+  (add-hook 'python-mode-hook #'python-cell-mode 1))
+
+(use-package rjsx-mode
+  :straight t
+  :ensure t)
+
+(use-package rust-mode
+  :straight t
+  :ensure t
+  :config
+  (autoload 'rust-mode "rust-mode" nil t)
+  (add-to-list 'auto-mode-alist '("\\.rs\\'" . rust-mode))
+  (add-hook 'rust-mode-hook
+            (lambda () (setq indent-tabs-mode nil)))
+  (setq rust-format-on-save t)
+  (add-hook 'rust-mode-hook
+          (lambda () (prettify-symbols-mode))))
+
+(use-package lsp-mssql
+  :straight t
+  :ensure t
+  :config
+  (add-hook 'sql-mode-hook 'lsp))
+
+(use-package syntactic-close
+  :straight t
+  :ensure t)
+
+(use-package lsp-tailwindcss
+  :straight t
+  :ensure t
+  :init
+  (setq lsp-tailwindcss-add-on-mode t))
+
+(use-package typescript-mode
+  :straight t
+  :ensure t
+  :config(require 'ansi-color)
+  (defun colorize-compilation-buffer ()
+    (ansi-color-apply-on-region compilation-filter-start (point-max)))
+  (add-hook 'compilation-filter-hook 'colorize-compilation-buffer))
+
+;; if you use treesitter based typescript-ts-mode (emacs 29+)
+(use-package tide
+  :straight t
+  :ensure t
+  :after (flycheck)
+  :hook ((typescript-ts-mode . tide-setup)
+         (tsx-ts-mode . tide-setup)
+         (typescript-ts-mode . tide-hl-identifier-mode)
+         (before-save . tide-format-before-save)))
+
+(use-package web-mode
+  :straight t
+  :ensure t)
+
+(use-package x509-mode
+  :straight t
+  :ensure t)
+
+(use-package yaml-mode
+  :straight t
+  :ensure t)
+
+(use-package yaml-pro
+  :straight t
+  :ensure t
+  :config
+  (add-hook 'yaml-mode-hook #'yaml-pro-mode))
+
+(use-package pcsv
+  :straight t
+  :ensure t)
+
+;; PDF
+(use-package pdf-tools
+  :straight t
+  :ensure t
+  :config
+  (pdf-tools-install)
+  ;; Pdf and swiper does not work together
+  (define-key pdf-view-mode-map (kbd "C-s") 'isearch-forward-regexp))
+
+(use-package ascii-table
+  :straight t
+  :ensure t)
+
+(use-package cargo
+  :straight t
+  :ensure t)
+
+(use-package eldoc
+  :straight t
+  :ensure t)
+
+(use-package isearch-mb
+  :straight t
+  :ensure t)
+
+(use-package rg
+  :straight t
+  :ensure t
+  :config
+  (rg-enable-default-bindings))
+
+(use-package olivetti
+  :straight t
+  :ensure t)
+
+(use-package qrencode
+  :straight t
+  :ensure t)
+
+(use-package request
+  :straight t
+  :ensure t)
+
+(use-package slime
+  :straight t
+  :ensure t)
+
+(use-package citre
+  :straight t
+  :ensure t
+  :defer t
+  :init
+  ;; This is needed in `:init' block for lazy load to work.
+  (require 'citre-config)
+  ;; Bind your frequently used commands.  Alternatively, you can define them
+  ;; in `citre-mode-map' so you can only use them when `citre-mode' is enabled.
+  (global-set-key (kbd "C-x c j") 'citre-jump)
+  (global-set-key (kbd "C-x c J") 'citre-jump-back)
+  (global-set-key (kbd "C-x c p") 'citre-ace-peek)
+  (global-set-key (kbd "C-x c u") 'citre-update-this-tags-file)
+  :config
+  (setq citre-project-root-function #'projectile-project-root
+        citre-use-project-root-when-creating-tags t
+        citre-prompt-language-for-ctags-command t
+        citre-auto-enable-citre-mode-modes '(prog-mode)))
+
+(use-package format-all
+  :straight t
+  :ensure t
+  :hook
+  (prog-mode . format-all-mode)
+  :custom
+  (format-all-show-errors 'warnings))
+
+(use-package symbol-overlay
+  :straight t
+  :ensure t
+  :config
+  (global-set-key (kbd "M-i") 'symbol-overlay-put)
+  (global-set-key (kbd "M-n") 'symbol-overlay-switch-forward)
+  (global-set-key (kbd "M-p") 'symbol-overlay-switch-backward)
+  (global-set-key (kbd "<f7>") 'symbol-overlay-mode)
+  (global-set-key (kbd "<f8>") 'symbol-overlay-remove-all))
+
+(use-package wrap-region
+  :straight t
+  :ensure t
+  :init
+  (wrap-region-mode t))
+
+(use-package yasnippet
+  :straight t
+  :ensure t
+  :hook
+  (prog-mode . yas-minor-mode)
+  :config
+  (yas-reload-all)
+  ;; unbind <TAB> completion
+  (define-key yas-minor-mode-map [(tab)]        nil)
+  (define-key yas-minor-mode-map (kbd "TAB")    nil)
+  (define-key yas-minor-mode-map (kbd "<tab>")  nil)
+  :bind
+  (:map yas-minor-mode-map ("S-<tab>" . yas-expand)))
+
+(use-package yasnippet-snippets
+  :straight t
+  :ensure t
+  :after yasnippet)
