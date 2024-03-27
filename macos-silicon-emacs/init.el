@@ -661,9 +661,6 @@ Up^^             Down^^           Miscellaneous           % 2(mc/num-cursors) cu
   ) ; unless installed from a package
 (add-to-list 'auto-mode-alist '("\\.env\\..*\\'" . dotenv-mode)) ;; for optionally supporting additional file extensions such as `.env.test' with this major mode
 
-
-(add-hook 'go-mode-hook 'lsp-bridge)
-
 (use-package go-mode
   :straight t
   :ensure t
@@ -1153,25 +1150,22 @@ Up^^             Down^^           Miscellaneous           % 2(mc/num-cursors) cu
   (setq lsp-bridge-completion-candidates t
         lsp-bridge-enable-auto-format-code nil
         lsp-bridge-enable-signature-help t
-        lsp-bridge-signature-posframe t)
-  ;; (unless (display-graphic-p)
-  ;;   (with-eval-after-load 'acm
-  ;;     (require 'acm-terminal)))
+        lsp-bridge-signature-posframe t
+        acm-mode t
+        acm-enable-dabbrev t
+        acm-backend-elisp-min-length 4
+        acm-backend-tempel-candidates-number 4
+        acm-enable-doc t
+        acm-doc-frame-max-lines 1000
+        acm-enable-icon t
+        acm-enable-quick-access t
+        acm-enable-citre t
+        acm-backend-citre-keyword-complete t
+        acm-enable-copilot t)
+  (unless (display-graphic-p)
+    (with-eval-after-load 'acm
+      (require 'acm-terminal)))
 )
-;; 这个是 lsp-bridge 补全相关
-;; (use-package acm
-;;   :after lsp-bridge
-;;   :config
-;;   (setq acm-mode t
-;;         acm-enable-dabbrev t
-;;         acm-backend-elisp-min-length 4
-;;         acm-backend-tempel-candidates-number 4
-;;         acm-enable-doc t
-;;         acm-doc-frame-max-lines 1000
-;;         acm-enable-icon t
-;;         acm-enable-quick-access t
-;;         acm-enable-citre t
-;;         acm-backend-citre-keyword-complete t))
 
 (use-package dumb-jump
   :straight t
